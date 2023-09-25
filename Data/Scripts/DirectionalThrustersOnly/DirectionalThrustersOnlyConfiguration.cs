@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Sandbox.Definitions;
 using Sandbox.ModAPI;
 using VRage.Game;
 using VRage.ObjectBuilders;
-using VRage.Serialization;
 using VRage.Utils;
-using VRageMath;
 
 namespace DirectionalThrustersOnly
 {

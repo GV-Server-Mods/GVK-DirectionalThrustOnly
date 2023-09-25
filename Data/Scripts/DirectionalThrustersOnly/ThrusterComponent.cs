@@ -1,20 +1,10 @@
 ﻿using Sandbox.Common.ObjectBuilders;
-using Sandbox.Game.Entities.Cube;
-using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using VRage.Game.Components;
 using VRage.ModAPI;
 using VRage.ObjectBuilders;
-using VRage.Game.ModAPI;
 using VRageMath;
-using Sandbox.Engine.Utils;
-using VRage.Utils;
-using System.IO;
 
 namespace DirectionalThrustersOnly
 {
@@ -42,7 +32,7 @@ namespace DirectionalThrustersOnly
 
         public override void UpdateOnceBeforeFrame()
         {
-            if (thruster == null || thruster.Closed || thruster.MarkedForClose || !thruster.IsFunctional)
+            if (Util.IsValid(thruster))
             {
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
@@ -57,7 +47,7 @@ namespace DirectionalThrustersOnly
 
             var cubeGrid = thruster.CubeGrid;
 
-            if (!Util.IsValid(cubeGrid) || cubeGrid.Physics == null || DirectionalThrustersOnlySessionComponent.Instance.IsGridNPCOwned(cubeGrid))
+            if (!Util.IsValid(cubeGrid) || DirectionalThrustersOnlySessionComponent.Instance.IsGridNPCOwned(cubeGrid))
             {
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
@@ -78,7 +68,7 @@ namespace DirectionalThrustersOnly
 
         public override void UpdateBeforeSimulation10()
         {
-            if (thruster == null || thruster.Closed || thruster.MarkedForClose || !thruster.IsFunctional)
+            if (Util.IsValid(thruster) || !thruster.IsFunctional)
             {
                 return;
             }
