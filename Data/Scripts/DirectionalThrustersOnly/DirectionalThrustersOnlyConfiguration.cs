@@ -15,46 +15,15 @@ namespace DirectionalThrustersOnly
     {
         private const string ConfigFileName = "DirectionalThrustersOnlyConfig.xml";
 
-        private const float DefaultGridUpdateRateSeconds = 0.5f;
-
-        private const float DefaultMaxAngleConfigDegrees = 45.0f;
+        private const float DefaultFalloffStartDegrees = 60.0f;
+        private const float DefaultMinThrustDegrees = 10.0f;
         private const float DefaultMinThrustMultiplierConfig = 0.01f;
-        private const float DefaultTiltTimeSecondsConfig = 1.0f;
-        private const float DefaultRecoveryTimeSecondsConfig = 0.5f;
+        private const float DefaultMaxStrengthMultiplierDropPerSecondConfig = 0.1f;
 
-        /// <summary>
-        /// The rate at which to update thruster data
-        /// </summary>
-        public float GridUpdateRateSeconds { get; set; }
         /// <summary>
         /// The list of configuration items for directional thrusters
         /// </summary>
         public List<DirectionalThrustersOnlyConfigurationItem> ConfigurationItems { get; set; }
-
-        /// <summary>
-        /// Seconds to take to detect a tilted condition
-        /// </summary>
-        public float TiltTimeSeconds { get; set; }
-
-        /// <summary>
-        /// Seconds to take to recover after no longer being tilted
-        /// </summary>
-        public float RecoveryTimeSeconds { get; set; }
-
-        /// <summary>
-        /// Generated property from TiltTimeSeconds: The number of frames to detect a tilted condition
-        /// </summary>
-        internal int tiltTimeFrames;
-
-        /// <summary>
-        /// Generated property from RecoveryTimeSeconds: The number of frames to be untilted to begin recovery
-        /// </summary>
-        internal int recoveryTimeFrames;
-
-        /// <summary>
-        /// Generated property from GridUpdateRateSeconds: The number of frames between each grid update
-        /// </summary>
-        internal int gridUpdateRateFrames;
 
         /// <summary>
         /// Generated property to look up block block data by type
@@ -114,9 +83,6 @@ namespace DirectionalThrustersOnly
 
         private void UpdateCalculatedData()
         {
-            gridUpdateRateFrames = (int)(GridUpdateRateSeconds * 60.0f);
-            //MyLog.Default.WriteLineAndConsole($"DirectionalThrustersOnly: Grid update rate set to {gridUpdateRateFrames} frames");
-
             blockConfigs = new Dictionary<MyDefinitionId, DirectionalThrustersOnlyConfigurationItem>();
 
             foreach (var item in ConfigurationItems)
@@ -126,8 +92,6 @@ namespace DirectionalThrustersOnly
                     blockConfigs.Add(new MyDefinitionId(type.TypeId, type.SubtypeId), item);
                 }
             }
-            tiltTimeFrames = (int)(TiltTimeSeconds * 60);
-            recoveryTimeFrames = (int)(RecoveryTimeSeconds * 60);
         }
 
         private bool Validate()
@@ -137,29 +101,23 @@ namespace DirectionalThrustersOnly
                 return false;
             }
 
-            if (GridUpdateRateSeconds < 0.0f)
-            {
-                GridUpdateRateSeconds = DefaultGridUpdateRateSeconds;
-            }
-
-            if (TiltTimeSeconds < 0.0f)
-            {
-                TiltTimeSeconds = DefaultTiltTimeSecondsConfig;
-            }
-            if (RecoveryTimeSeconds < 0.0f)
-            {
-                RecoveryTimeSeconds = DefaultRecoveryTimeSecondsConfig;
-            }
-
             foreach (var item in ConfigurationItems)
             {
-                if (item.MaxAngleDegrees <= 0.0f)
+                if (item.FalloffStartDegrees <= 0.0f)
                 {
-                    item.MaxAngleDegrees = DefaultMaxAngleConfigDegrees;
+                    item.FalloffStartDegrees = DefaultFalloffStartDegrees;
+                }
+                if (item.MinThrustDegrees <= 0.0f)
+                {
+                    item.MinThrustDegrees = DefaultMinThrustDegrees;
                 }
                 if (item.MinThrustMultiplier < 0.01f)
                 {
                     item.MinThrustMultiplier = DefaultMinThrustMultiplierConfig;
+                }
+                if (item.MaxStrengthMultiplierDropPerSecond < 0.0f)
+                {
+                    item.MaxStrengthMultiplierDropPerSecond = DefaultMaxStrengthMultiplierDropPerSecondConfig;
                 }
             }
             return true;
@@ -171,17 +129,15 @@ namespace DirectionalThrustersOnly
 
             var definitions = MyDefinitionManager.Static.GetDefinitionsOfType<MyThrustDefinition>();
 
-            GridUpdateRateSeconds = DefaultGridUpdateRateSeconds;
-            TiltTimeSeconds = DefaultTiltTimeSecondsConfig;
-            RecoveryTimeSeconds = DefaultRecoveryTimeSecondsConfig;
-
             if (ConfigurationItems.Count == 0)
             {
                 //MyLog.Default.WriteLineAndConsole($"DirectionalThrustersOnly: Adding default blockdefs {definitions.Count}");
                 var newItem = new DirectionalThrustersOnlyConfigurationItem()
                 {
-                    MaxAngleDegrees = DefaultMaxAngleConfigDegrees,
+                    FalloffStartDegrees = DefaultFalloffStartDegrees,
+                    MinThrustDegrees = DefaultMinThrustDegrees,
                     MinThrustMultiplier = DefaultMinThrustMultiplierConfig,
+                    MaxStrengthMultiplierDropPerSecond = DefaultMaxStrengthMultiplierDropPerSecondConfig,
                     Types = new List<SerializableDefinitionId>(definitions.Count)
                 };
 
@@ -207,6 +163,8 @@ namespace DirectionalThrustersOnly
 public class DirectionalThrustersOnlyConfigurationItem
 {
     public List<SerializableDefinitionId> Types { get; set; }
-    public float MaxAngleDegrees { get; set; }
+    public float FalloffStartDegrees { get; set; }
+    public float MinThrustDegrees { get; set; }
     public float MinThrustMultiplier { get; set; }
+    public float MaxStrengthMultiplierDropPerSecond { get; set; }
 }

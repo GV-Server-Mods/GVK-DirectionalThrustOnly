@@ -14,22 +14,17 @@ using VRage.Game.ModAPI;
 using VRageMath;
 using Sandbox.Engine.Utils;
 using VRage.Utils;
+using System.IO;
 
 namespace DirectionalThrustersOnly
 {
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Thrust), false)]
     public class DirectionalThrustersOnlyEntityComponent : MyGameLogicComponent
     {
-        private const double radiansToDegrees = 180 / Math.PI;
 
         private IMyThrust thruster;
-        private IMyCubeGrid cubeGrid;
         private Vector3 thrusterDirection;
-        private DirectionalThrustersOnlyConfiguration globalConfig;
-        private DirectionalThrustersOnlyConfigurationItem thrusterConfig;
-        private int tiltDetectionFrame;
-        private int recoveryStartFrame;
-        private bool isInTiltedState = false;
+        private DirectionalThrustersOnlyConfigurationItem config;
 
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
@@ -42,21 +37,33 @@ namespace DirectionalThrustersOnly
             NeedsUpdate = MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
 
             thruster = (IMyThrust)Entity;
-            cubeGrid = thruster.CubeGrid;
             thrusterDirection = Base6Directions.GetVector(thruster.Orientation.Forward);
-            thruster.OnMarkForClose += OnMarkForClose;
         }
 
         public override void UpdateOnceBeforeFrame()
         {
-            var config = DirectionalThrustersOnlySessionComponent.Instance?.Config;
-            if (config == null || !Util.IsValid(cubeGrid) || DirectionalThrustersOnlySessionComponent.Instance.IsGridNPCOwned(cubeGrid))
+            if (thruster == null || thruster.Closed || thruster.MarkedForClose || !thruster.IsFunctional)
             {
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
             }
 
-            var configForType = config.GetConfigForType(thruster.BlockDefinition);
+            var instanceConfig = DirectionalThrustersOnlySessionComponent.Instance?.Config;
+            if (instanceConfig == null)
+            {
+                NeedsUpdate = MyEntityUpdateEnum.NONE;
+                return;
+            }
+
+            var cubeGrid = thruster.CubeGrid;
+
+            if (!Util.IsValid(cubeGrid) || cubeGrid.Physics == null || DirectionalThrustersOnlySessionComponent.Instance.IsGridNPCOwned(cubeGrid))
+            {
+                NeedsUpdate = MyEntityUpdateEnum.NONE;
+                return;
+            }
+
+            var configForType = instanceConfig.GetConfigForType(thruster.BlockDefinition);
 
             if (configForType == null)
             {
@@ -64,116 +71,47 @@ namespace DirectionalThrustersOnly
                 return;
             }
 
-            globalConfig = config;
-            thrusterConfig = configForType;
+            config = configForType;
 
-            // Failsafe-ish action in case this is the first reconstructed thruster on a grid after losing all thrusters in a tilted direction
-            var tiltedDirections = DirectionalThrustersOnlySessionComponent.Instance.GetTiltedDirections(cubeGrid);
-            foreach (var direction in tiltedDirections)
-            {
-                if (direction.Direction == thrusterDirection)
-                {
-                    if (MyAPIGateway.Session.GameplayFrameCounter >= recoveryStartFrame)
-                    {
-                        DirectionalThrustersOnlySessionComponent.Instance.MarkDirectionRecovered(cubeGrid, thrusterDirection);
-                    }
-                }
-            }
             NeedsUpdate = MyEntityUpdateEnum.EACH_10TH_FRAME;
         }
 
         public override void UpdateBeforeSimulation10()
         {
-            if (!Util.IsValid(cubeGrid))
+            if (thruster == null || thruster.Closed || thruster.MarkedForClose || !thruster.IsFunctional)
             {
                 return;
             }
 
-            if (cubeGrid.Physics == null)
+            var cubeGrid = thruster.CubeGrid;
+
+            if (!Util.IsValid(cubeGrid) || cubeGrid.Physics == null)
             {
                 return;
             }
 
-            var frame = MyAPIGateway.Session.GameplayFrameCounter;
             float naturalGravityInterference;
-            var gravityNormal = MyAPIGateway.Physics.CalculateNaturalGravityAt(thruster.CubeGrid.PositionComp.GetPosition(), out naturalGravityInterference).Normalized();
-            var gridOrientation = thruster.CubeGrid.PositionComp.GetOrientation();
-            var blockThrustDirection = Vector3.TransformNormal(Base6Directions.GetVector(thruster.Orientation.Forward), gridOrientation);
-            var dotProduct = blockThrustDirection.Dot(gravityNormal);
-            var angleDegrees = (float)(radiansToDegrees * Math.Acos(dotProduct));
+            var gravityNormal = MyAPIGateway.Physics.CalculateNaturalGravityAt(cubeGrid.PositionComp.GetPosition(), out naturalGravityInterference).Normalized();
+            var gridOrientation = cubeGrid.PositionComp.GetOrientation();
+            var worldThrustDirection = Vector3.TransformNormal(thrusterDirection, gridOrientation);
+            var angleFromGravity = MathHelper.ToDegrees((float)Math.Acos(worldThrustDirection.Dot(gravityNormal)));
 
-            if (angleDegrees < thrusterConfig.MaxAngleDegrees)
+            if (angleFromGravity < config.MinThrustDegrees)
             {
-                recoveryStartFrame = frame + globalConfig.recoveryTimeFrames;
-
-                if (tiltDetectionFrame == 0)
-                {
-                    var tiltedDirections = DirectionalThrustersOnlySessionComponent.Instance.GetTiltedDirections(cubeGrid);
-
-                    var earliestTilt = frame + globalConfig.tiltTimeFrames;
-                    bool alreadyHasTilt = false;
-                    foreach (var direction in tiltedDirections)
-                    {
-                        if (direction.TiltDetectedFrame <= earliestTilt)
-                        {
-                            earliestTilt = direction.TiltDetectedFrame;
-                            if (direction.Direction == thrusterDirection)
-                            {
-                                alreadyHasTilt = true;
-                            }
-                            else
-                            {
-                                //MyLog.Default.WriteLineAndConsole($"DirectionalThrustersOnly: Found existing tilt direction for {cubeGrid.DisplayName} in direction {direction.Direction} (current:{thrusterDirection}) for frame {direction.TiltDetectedFrame} (now: {frame})");
-                            }
-                        }
-                    }
-
-                    tiltDetectionFrame = earliestTilt;
-
-                    if (!alreadyHasTilt)
-                    {
-                        var tiltData = new TiltDirectionData()
-                        {
-                            Direction = thrusterDirection,
-                            TiltDetectedFrame = tiltDetectionFrame,
-                        };
-                        DirectionalThrustersOnlySessionComponent.Instance.MarkDirectionTilted(cubeGrid, tiltData);
-                    }
-                }
-
-                if (tiltDetectionFrame > 0 && frame >= tiltDetectionFrame)
-                {
-                    thruster.ThrustMultiplier = thrusterConfig.MinThrustMultiplier;
-                    thruster.PowerConsumptionMultiplier = thrusterConfig.MinThrustMultiplier;
-                    isInTiltedState = true;
-                }
+                thruster.ThrustMultiplier = config.MinThrustMultiplier;
+                thruster.PowerConsumptionMultiplier = config.MinThrustMultiplier;
+            }
+            else if (angleFromGravity < config.FalloffStartDegrees)
+            {
+                var requestedThrustMultiplier = MathHelper.Clamp(MathHelper.Lerp(config.MinThrustMultiplier, 1, (angleFromGravity - config.MinThrustDegrees) / (config.FalloffStartDegrees - config.MinThrustDegrees)), 0.01f, 1);
+                thruster.ThrustMultiplier = requestedThrustMultiplier;
+                thruster.PowerConsumptionMultiplier = requestedThrustMultiplier;
             }
             else
             {
-                if (tiltDetectionFrame > 0 && frame < tiltDetectionFrame)
-                {
-                    tiltDetectionFrame = 0;
-                    recoveryStartFrame = 0;
-                    DirectionalThrustersOnlySessionComponent.Instance.MarkDirectionRecovered(cubeGrid, thrusterDirection);
-                }
-                else if (recoveryStartFrame > 0 && frame >= recoveryStartFrame)
-                {
-                    tiltDetectionFrame = 0;
-                    recoveryStartFrame = 0;
-                    if (isInTiltedState)
-                    {
-                        DirectionalThrustersOnlySessionComponent.Instance.MarkDirectionRecovered(cubeGrid, thrusterDirection);
-                        thruster.ThrustMultiplier = 1f;
-                        thruster.PowerConsumptionMultiplier = 1f;
-                        isInTiltedState = false;
-                    }
-                }
+                thruster.ThrustMultiplier = 1;
+                thruster.PowerConsumptionMultiplier = 1;
             }
-        }
-
-        private void OnMarkForClose(IMyEntity entity)
-        {
-            DirectionalThrustersOnlySessionComponent.Instance.MarkDirectionRecovered(cubeGrid, thrusterDirection);
         }
     }
 }
