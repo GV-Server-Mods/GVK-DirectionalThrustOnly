@@ -15,7 +15,6 @@ namespace DirectionalThrustersOnly
         private const float DefaultFalloffStartDegrees = 60.0f;
         private const float DefaultMinThrustDegrees = 10.0f;
         private const float DefaultMinThrustMultiplierConfig = 0.01f;
-        private const float DefaultMaxStrengthMultiplierDropPerSecondConfig = 0.1f;
 
         /// <summary>
         /// The list of configuration items for directional thrusters
@@ -112,10 +111,6 @@ namespace DirectionalThrustersOnly
                 {
                     item.MinThrustMultiplier = DefaultMinThrustMultiplierConfig;
                 }
-                if (item.MaxStrengthMultiplierDropPerSecond < 0.0f)
-                {
-                    item.MaxStrengthMultiplierDropPerSecond = DefaultMaxStrengthMultiplierDropPerSecondConfig;
-                }
             }
             return true;
         }
@@ -134,7 +129,6 @@ namespace DirectionalThrustersOnly
                     FalloffStartDegrees = DefaultFalloffStartDegrees,
                     MinThrustDegrees = DefaultMinThrustDegrees,
                     MinThrustMultiplier = DefaultMinThrustMultiplierConfig,
-                    MaxStrengthMultiplierDropPerSecond = DefaultMaxStrengthMultiplierDropPerSecondConfig,
                     Types = new List<SerializableDefinitionId>(definitions.Count)
                 };
 
@@ -163,5 +157,4 @@ public class DirectionalThrustersOnlyConfigurationItem
     public float FalloffStartDegrees { get; set; }
     public float MinThrustDegrees { get; set; }
     public float MinThrustMultiplier { get; set; }
-    public float MaxStrengthMultiplierDropPerSecond { get; set; }
 }
