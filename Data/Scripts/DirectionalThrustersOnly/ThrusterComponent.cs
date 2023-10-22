@@ -16,7 +16,8 @@ namespace DirectionalThrustersOnly
         private IMyThrust thruster;
         private Vector3 thrusterDirection;
         private DirectionalThrustersOnlyConfigurationItem config;
-        private float upgradeMultiplier = 1f;
+        private float upgradeThrustMultiplier = 1f;
+        private float upgradePowerMultiplier = 1f;
 
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
@@ -78,9 +79,13 @@ namespace DirectionalThrustersOnly
                 return;
             }
 
-            if (!thruster.UpgradeValues.TryGetValue("ThrustMultiplier", out upgradeMultiplier))
+            if (!thruster.UpgradeValues.TryGetValue("ThrustMultiplier", out upgradeThrustMultiplier))
             {
-                upgradeMultiplier = 1f;
+                upgradeThrustMultiplier = 1f;
+            }
+            if (!thruster.UpgradeValues.TryGetValue("PowerConsumptionMultiplier", out upgradePowerMultiplier))
+            {
+                upgradePowerMultiplier = 1f;
             }
         }
 
@@ -106,19 +111,19 @@ namespace DirectionalThrustersOnly
 
             if (angleFromGravity < config.MinThrustDegrees)
             {
-                thruster.ThrustMultiplier = config.MinThrustMultiplier * upgradeMultiplier;
-                thruster.PowerConsumptionMultiplier = config.MinThrustMultiplier;
+                thruster.ThrustMultiplier = config.MinThrustMultiplier * upgradeThrustMultiplier;
+                thruster.PowerConsumptionMultiplier = config.MinThrustMultiplier * upgradePowerMultiplier;
             }
             else if (angleFromGravity < config.FalloffStartDegrees)
             {
                 var requestedThrustMultiplier = MathHelper.Clamp(MathHelper.Lerp(config.MinThrustMultiplier, 1, (angleFromGravity - config.MinThrustDegrees) / (config.FalloffStartDegrees - config.MinThrustDegrees)), 0.01f, 1);
-                thruster.ThrustMultiplier = requestedThrustMultiplier * upgradeMultiplier;
-                thruster.PowerConsumptionMultiplier = requestedThrustMultiplier;
+                thruster.ThrustMultiplier = requestedThrustMultiplier * upgradeThrustMultiplier;
+                thruster.PowerConsumptionMultiplier = requestedThrustMultiplier * upgradePowerMultiplier;
             }
             else
             {
-                thruster.ThrustMultiplier = 1 * upgradeMultiplier;
-                thruster.PowerConsumptionMultiplier = 1;
+                thruster.ThrustMultiplier = 1 * upgradeThrustMultiplier;
+                thruster.PowerConsumptionMultiplier = 1 * upgradePowerMultiplier;
             }
         }
     }
