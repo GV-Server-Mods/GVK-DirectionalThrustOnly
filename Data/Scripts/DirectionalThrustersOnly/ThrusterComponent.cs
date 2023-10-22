@@ -4,6 +4,7 @@ using System;
 using VRage.Game.Components;
 using VRage.ModAPI;
 using VRage.ObjectBuilders;
+using VRage.Utils;
 using VRageMath;
 
 namespace DirectionalThrustersOnly
@@ -15,6 +16,7 @@ namespace DirectionalThrustersOnly
         private IMyThrust thruster;
         private Vector3 thrusterDirection;
         private DirectionalThrustersOnlyConfigurationItem config;
+        private float upgradeMultiplier = 1f;
 
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
@@ -32,7 +34,7 @@ namespace DirectionalThrustersOnly
 
         public override void UpdateOnceBeforeFrame()
         {
-            if (Util.IsValid(thruster))
+            if (!Util.IsValid(thruster))
             {
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
@@ -63,12 +65,28 @@ namespace DirectionalThrustersOnly
 
             config = configForType;
 
+            thruster.OnUpgradeValuesChanged += ThrusterOnUpgradeValuesChanged;
+            thruster.AddUpgradeValue("HandlesUpgrade", 1f);
+
             NeedsUpdate = MyEntityUpdateEnum.EACH_10TH_FRAME;
+        }
+
+        private void ThrusterOnUpgradeValuesChanged()
+        {
+            if (!Util.IsValid(thruster))
+            {
+                return;
+            }
+
+            if (!thruster.UpgradeValues.TryGetValue("ThrustMultiplier", out upgradeMultiplier))
+            {
+                upgradeMultiplier = 1f;
+            }
         }
 
         public override void UpdateBeforeSimulation10()
         {
-            if (Util.IsValid(thruster) || !thruster.IsFunctional)
+            if (!Util.IsValid(thruster) || !thruster.IsFunctional)
             {
                 return;
             }
@@ -88,18 +106,18 @@ namespace DirectionalThrustersOnly
 
             if (angleFromGravity < config.MinThrustDegrees)
             {
-                thruster.ThrustMultiplier = config.MinThrustMultiplier;
+                thruster.ThrustMultiplier = config.MinThrustMultiplier * upgradeMultiplier;
                 thruster.PowerConsumptionMultiplier = config.MinThrustMultiplier;
             }
             else if (angleFromGravity < config.FalloffStartDegrees)
             {
                 var requestedThrustMultiplier = MathHelper.Clamp(MathHelper.Lerp(config.MinThrustMultiplier, 1, (angleFromGravity - config.MinThrustDegrees) / (config.FalloffStartDegrees - config.MinThrustDegrees)), 0.01f, 1);
-                thruster.ThrustMultiplier = requestedThrustMultiplier;
+                thruster.ThrustMultiplier = requestedThrustMultiplier * upgradeMultiplier;
                 thruster.PowerConsumptionMultiplier = requestedThrustMultiplier;
             }
             else
             {
-                thruster.ThrustMultiplier = 1;
+                thruster.ThrustMultiplier = 1 * upgradeMultiplier;
                 thruster.PowerConsumptionMultiplier = 1;
             }
         }
