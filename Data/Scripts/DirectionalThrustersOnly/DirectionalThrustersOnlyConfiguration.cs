@@ -45,6 +45,7 @@ namespace DirectionalThrustersOnly
                     }
 
                     SaveSettings(loadedSettings);
+                    loadedSettings.UpdateCalculatedData();
                     return loadedSettings;
                 }
                 catch (Exception e)

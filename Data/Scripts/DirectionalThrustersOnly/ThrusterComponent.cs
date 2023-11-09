@@ -2,6 +2,7 @@
 using Sandbox.ModAPI;
 using System;
 using VRage.Game.Components;
+using VRage.Game.ModAPI;
 using VRage.ModAPI;
 using VRage.ObjectBuilders;
 using VRage.Utils;
@@ -56,16 +57,34 @@ namespace DirectionalThrustersOnly
                 return;
             }
 
-            if (instanceConfig.TryGetConfigForType(thruster.BlockDefinition, out config))
+            if (!instanceConfig.TryGetConfigForType(thruster.BlockDefinition, out config))
             {
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
             }
 
-            thruster.OnUpgradeValuesChanged += ThrusterOnUpgradeValuesChanged;
+            cubeGrid.OnIsStaticChanged += CubeGridOnIsStaticChanged;
             thruster.AddUpgradeValue("HandlesUpgrade", 1f);
+            thruster.OnUpgradeValuesChanged += ThrusterOnUpgradeValuesChanged;
 
-            NeedsUpdate = MyEntityUpdateEnum.EACH_10TH_FRAME;
+            NeedsUpdate = cubeGrid.IsStatic ? MyEntityUpdateEnum.NONE : MyEntityUpdateEnum.EACH_10TH_FRAME;
+        }
+
+        public override void Close()
+        {
+            if (thruster != null)
+            {
+                thruster.OnUpgradeValuesChanged -= ThrusterOnUpgradeValuesChanged;
+                if (thruster.CubeGrid != null)
+                {
+                    thruster.CubeGrid.OnIsStaticChanged -= CubeGridOnIsStaticChanged;
+                }
+            }
+        }
+
+        private void CubeGridOnIsStaticChanged(IMyCubeGrid grid, bool isStatic)
+        {
+            NeedsUpdate = isStatic ? MyEntityUpdateEnum.NONE : MyEntityUpdateEnum.EACH_10TH_FRAME;
         }
 
         private void ThrusterOnUpgradeValuesChanged()
@@ -99,8 +118,49 @@ namespace DirectionalThrustersOnly
                 return;
             }
 
+            if (cubeGrid.Physics.Speed < 5f)
+            {
+                NeedsUpdate = MyEntityUpdateEnum.EACH_100TH_FRAME;
+            }
+
+            SetMultipliers(cubeGrid);
+        }
+
+        public override void UpdateBeforeSimulation100()
+        {
+            if (!Util.IsValid(thruster) || !thruster.IsWorking)
+            {
+                return;
+            }
+
+            var cubeGrid = thruster.CubeGrid;
+
+            if (!Util.IsValid(cubeGrid) || cubeGrid.Physics == null)
+            {
+                return;
+            }
+
+            if (cubeGrid.Physics.Speed >= 5f)
+            {
+                NeedsUpdate = MyEntityUpdateEnum.EACH_10TH_FRAME;
+            }
+
+            SetMultipliers(cubeGrid);
+        }
+
+        private void SetMultipliers(IMyCubeGrid cubeGrid)
+        {
             float naturalGravityInterference;
-            var gravityNormal = MyAPIGateway.Physics.CalculateNaturalGravityAt(cubeGrid.PositionComp.GetPosition(), out naturalGravityInterference).Normalized();
+            var gravityVector = MyAPIGateway.Physics.CalculateNaturalGravityAt(cubeGrid.PositionComp.GetPosition(), out naturalGravityInterference);
+
+            if (MathHelper.IsZero(gravityVector))
+            {
+                thruster.ThrustMultiplier = 1 * upgradeThrustMultiplier;
+                thruster.PowerConsumptionMultiplier = 1 * upgradePowerMultiplier;
+                return;
+            }
+
+            var gravityNormal = gravityVector.Normalized();
             var gridOrientation = cubeGrid.PositionComp.GetOrientation();
             var worldThrustDirection = Vector3.TransformNormal(thrusterDirection, gridOrientation);
             var angleFromGravity = MathHelper.ToDegrees((float)Math.Acos(worldThrustDirection.Dot(gravityNormal)));
