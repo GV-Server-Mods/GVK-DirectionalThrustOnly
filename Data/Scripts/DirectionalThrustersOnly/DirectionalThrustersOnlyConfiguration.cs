@@ -58,6 +58,7 @@ namespace DirectionalThrustersOnly
             var settings = new DirectionalThrustersOnlyConfiguration();
             settings.SetDefaults();
             SaveSettings(settings);
+            settings.UpdateCalculatedData();
             return settings;
         }
 
@@ -69,7 +70,6 @@ namespace DirectionalThrustersOnly
                 {
                     writer.Write(MyAPIGateway.Utilities.SerializeToXML(settings));
                 }
-                settings.UpdateCalculatedData();
             }
             catch (Exception e)
             {
