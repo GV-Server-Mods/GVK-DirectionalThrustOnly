@@ -91,7 +91,7 @@ namespace DirectionalThrustersOnly
 
         public override void UpdateBeforeSimulation10()
         {
-            if (!Util.IsValid(thruster) || !thruster.IsFunctional)
+            if (!Util.IsValid(thruster) || !thruster.IsWorking)
             {
                 return;
             }
