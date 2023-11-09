@@ -144,10 +144,9 @@ namespace DirectionalThrustersOnly
             }
         }
 
-        internal DirectionalThrustersOnlyConfigurationItem GetConfigForType(MyDefinitionId id)
+        internal bool TryGetConfigForType(MyDefinitionId id, out DirectionalThrustersOnlyConfigurationItem config)
         {
-            DirectionalThrustersOnlyConfigurationItem config;
-            return blockConfigs.TryGetValue(id, out config) ? config : null;
+            return blockConfigs.TryGetValue(id, out config);
         }
     }
 }

@@ -56,15 +56,11 @@ namespace DirectionalThrustersOnly
                 return;
             }
 
-            var configForType = instanceConfig.GetConfigForType(thruster.BlockDefinition);
-
-            if (configForType == null)
+            if (instanceConfig.TryGetConfigForType(thruster.BlockDefinition, out config))
             {
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
             }
-
-            config = configForType;
 
             thruster.OnUpgradeValuesChanged += ThrusterOnUpgradeValuesChanged;
             thruster.AddUpgradeValue("HandlesUpgrade", 1f);
