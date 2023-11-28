@@ -150,9 +150,7 @@ namespace DirectionalThrustersOnly
 
         private void SetMultipliers(IMyCubeGrid cubeGrid)
         {
-            float naturalGravityInterference;
-            var gravityVector = MyAPIGateway.Physics.CalculateNaturalGravityAt(cubeGrid.PositionComp.GetPosition(), out naturalGravityInterference);
-
+            var gravityVector = cubeGrid.NaturalGravity;
             if (MathHelper.IsZero(gravityVector))
             {
                 thruster.ThrustMultiplier = 1 * upgradeThrustMultiplier;
