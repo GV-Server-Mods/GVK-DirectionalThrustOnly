@@ -53,7 +53,17 @@ namespace DirectionalThrustersOnly
                     MyLog.Default.WriteLineAndConsole($"DirectionalThrustersOnly: Failed to load mod settings: {e.Message}\n{e.StackTrace}");
                 }
 
-                MyAPIGateway.Utilities.WriteBinaryFileInWorldStorage(ConfigFileName + ".old", typeof(DirectionalThrustersOnlyConfiguration));
+                using (var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage(ConfigFileName, typeof(DirectionalThrustersOnlyConfiguration)))
+                {
+                    var data = reader.ReadToEnd();
+                    if (data.Length > 0)
+                    {
+                        using (var writer = MyAPIGateway.Utilities.WriteBinaryFileInWorldStorage(ConfigFileName + ".old", typeof(DirectionalThrustersOnlyConfiguration)))
+                        {
+                            writer.Write(data);
+                        }
+                    }
+                }
             }
 
             var settings = new DirectionalThrustersOnlyConfiguration();
